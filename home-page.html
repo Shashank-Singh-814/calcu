@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chemical Reaction Engineering Calculators</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background: url('reactor.jpg') no-repeat center center fixed;
+            background-size: cover;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            color: #110815;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #34495e;
+            margin-bottom: 30px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .calculator-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .calculator-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .calculator-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card-header {
+            padding: 20px;
+            background: #3498db;
+            color: white;
+        }
+        
+        .cstr .card-header { background: #3498db; }
+        .pfr .card-header { background: #2ecc71; }
+        .rtd .card-header { background: #e74c3c; }
+        .ignition .card-header { background: #9b59b6; }
+        
+        .card-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        
+        .card-body {
+            padding: 20px;
+            flex-grow: 1;
+        }
+        
+        .card-footer {
+            padding: 15px 20px;
+            background: #f8f9fa;
+            text-align: center;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+        
+        .cstr .btn { background: #3498db; }
+        .cstr .btn:hover { background: #2980b9; }
+        
+        .pfr .btn { background: #2ecc71; }
+        .pfr .btn:hover { background: #27ae60; }
+        
+        .rtd .btn { background: #e74c3c; }
+        .rtd .btn:hover { background: #c0392b; }
+        
+        .ignition .btn { background: #9b59b6; }
+        .ignition .btn:hover { background: #8e44ad; }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #34495e;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .calculator-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                padding: 20px 0;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Chemical Reaction Engineering Calculators</h1>
+            <div class="subtitle">Interactive tools for reactor design and analysis</div>
+        </header>
+        
+        <div class="calculator-grid">
+            <!-- CSTR Calculator Card -->
+            <div class="calculator-card cstr">
+                <div class="card-header">
+                    <h2>CSTR Calculator</h2>
+                </div>
+                <div class="card-body">
+                    <div class="icon">🔄</div>
+                    <p>Continuous Stirred Tank Reactor calculator for modeling perfectly mixed reaction vessels with uniform conditions throughout.</p>
+                    <p>Ideal for steady-state modeling and conversion calculations.</p>
+                </div>
+                <div class="card-footer">
+                    <a href="cstr_calculator.html" class="btn">Open Calculator</a>
+                </div>
+            </div>
+            
+            <!-- PFR Calculator Card -->
+            <div class="calculator-card pfr">
+                <div class="card-header">
+                    <h2>PFR Calculator</h2>
+                </div>
+                <div class="card-body">
+                    <div class="icon">➡️</div>
+                    <p>Plug Flow Reactor calculator for tubular reactors with no mixing in the axial direction and perfect mixing in the radial direction.</p>
+                    <p>Analyze concentration gradients and conversion along reactor length.</p>
+                </div>
+                <div class="card-footer">
+                    <a href="pfr-calculator.html" class="btn">Open Calculator</a>
+                </div>
+            </div>
+            
+            <!-- RTD Calculator Card -->
+            <div class="calculator-card rtd">
+                <div class="card-header">
+                    <h2>RTD Calculator</h2>
+                </div>
+                <div class="card-body">
+                    <div class="icon">⏱️</div>
+                    <p>Residence Time Distribution calculator for characterizing flow behavior and non-ideal mixing in chemical reactors.</p>
+                    <p>Calculate mean residence time, variance, and other RTD parameters.</p>
+                </div>
+                <div class="card-footer">
+                    <a href="rtd_calculator.html" class="btn">Open Calculator</a>
+                </div>
+            </div>
+            
+            <!-- Ignition-Extinction Curve Calculator Card -->
+            <div class="calculator-card ignition">
+                <div class="card-header">
+                    <h2>Ignition-Extinction Calculator</h2>
+                </div>
+                <div class="card-body">
+                    <div class="icon">🔥</div>
+                    <p>Ignition-Extinction Curve calculator for analyzing the bistable behavior of exothermic reactions in continuous reactors.</p>
+                    <p>Visualize multiple steady states, ignition points, and extinction points for thermal runaway analysis.</p>
+                </div>
+                <div class="card-footer">
+                    <a href="ignition_extinction_app.html" class="btn">Open Calculator</a>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Chemical Reaction Engineering Suite &copy; 2025</p>
+        </footer>
+    </div>
+</body>
+</html>
