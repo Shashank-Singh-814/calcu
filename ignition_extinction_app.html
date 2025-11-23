@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSTR Ignition-Extinction Curve</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary: #4a6fa5;
+            --secondary: #334e68;
+            --accent: #ff6b6b;
+            --light: #f0f4f8;
+            --dark: #102a43;
+            --success: #3ebd93;
+            --warning: #f0b429;
+            --danger: #e12d39;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        
+        .app-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .inputs-container {
+            flex: 1;
+            min-width: 300px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .output-container {
+            flex: 2;
+            min-width: 500px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--secondary);
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .input-with-unit {
+            display: flex;
+            align-items: center;
+        }
+        
+        .input-with-unit input {
+            flex: 1;
+        }
+        
+        .unit {
+            padding: 0 8px;
+            color: var(--secondary);
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: var(--secondary);
+        }
+        
+        .console {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            height: 150px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .console-entry {
+            margin-bottom: 5px;
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stable {
+            color: var(--success);
+            font-weight: bold;
+        }
+        
+        .unstable {
+            color: var(--danger);
+            font-weight: bold;
+        }
+        
+        .chart-container {
+            margin-top: 20px;
+            position: relative;
+            height: 400px;
+        }
+        
+        .parameters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px 0;
+            color: var(--secondary);
+            font-size: 14px;
+        }
+
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: var(--dark);
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .section-title {
+            color: var(--primary);
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 8px;
+            margin-top: 20px;
+            margin-bottom: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            
+            .inputs-container, .output-container {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>CSTR Ignition-Extinction Curve Analysis</h1>
+    </header>
+    
+    <div class="container">
+        <div class="app-container">
+            <div class="inputs-container">
+                <h2 class="section-title">Parameters</h2>
+                
+                <div class="form-group">
+                    <label for="reaction-order">Reaction Order:</label>
+                    <select id="reaction-order">
+                        <option value="1">1st Order</option>
+                        <option value="2">2nd Order</option>
+                    </select>
+                </div>
+                
+                <div class="parameters-grid">
+                    <div class="form-group">
+                        <label for="delta-h" class="tooltip">
+                            ΔH°_Rx
+                            <span class="tooltiptext">Enthalpy of reaction</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="delta-h" value="-50000">
+                            <span class="unit">J/mol</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="tau" class="tooltip">
+                            τ
+                            <span class="tooltiptext">Residence time</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="tau" value="10">
+                            <span class="unit">s</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pre-exp" class="tooltip">
+                            A
+                            <span class="tooltiptext">Pre-exponential factor</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="pre-exp" value="1e7">
+                            <span class="unit">1/s or 1/(M s)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="activation-energy" class="tooltip">
+                            E
+                            <span class="tooltiptext">Activation energy</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="activation-energy" value="80000">
+                            <span class="unit">J/mol</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="gas-constant" class="tooltip">
+                            R
+                            <span class="tooltiptext">Gas constant</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="gas-constant" value="8.314">
+                            <span class="unit">J/(mol K)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="initial-concentration" class="tooltip">
+                            C_A0
+                            <span class="tooltiptext">Initial concentration</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="initial-concentration" value="1.0">
+                            <span class="unit">mol/L</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="cp0" class="tooltip">
+                            Cp0
+                            <span class="tooltiptext">Heat capacity</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="cp0" value="100">
+                            <span class="unit">J/(mol K)</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="kappa" class="tooltip">
+                            κ
+                            <span class="tooltiptext">Heat transfer coefficient</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="kappa" value="0.01">
+                            <span class="unit">W/K</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <h2 class="section-title">Temperature Range</h2>
+                <div class="parameters-grid">
+                    <div class="form-group">
+                        <label for="coolant-temps" class="tooltip">
+                            T_c (comma separated)
+                            <span class="tooltiptext">Coolant temperatures</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="text" id="coolant-temps" value="300, 350">
+                            <span class="unit">K</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="t-min" class="tooltip">
+                            T_min
+                            <span class="tooltiptext">Minimum temperature</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="t-min" value="250">
+                            <span class="unit">K</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="t-max" class="tooltip">
+                            T_max
+                            <span class="tooltiptext">Maximum temperature</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="t-max" value="450">
+                            <span class="unit">K</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="t-step" class="tooltip">
+                            T_step
+                            <span class="tooltiptext">Temperature step size</span>
+                        </label>
+                        <div class="input-with-unit">
+                            <input type="number" id="t-step" value="1">
+                            <span class="unit">K</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="plot-btn">Plot Ignition-Extinction</button>
+            </div>
+            
+            <div class="output-container">
+                <h2 class="section-title">Analysis Results</h2>
+                <div class="chart-container">
+                    <canvas id="curve-chart"></canvas>
+                </div>
+                
+                <h3 class="section-title">Intersection Points</h3>
+                <div id="console" class="console"></div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>© 2025 CSTR Ignition-Extinction Analysis Tool</p>
+    </footer>
+
+    <script>
+        // Global chart variable
+        let curveChart = null;
+        
+        // Find points of intersection between two curves
+        function findIntersections(arrX, arrY1, arrY2) {
+            const intersections = [];
+            for (let i = 0; i < arrX.length - 1; i++) {
+                const diff1 = arrY1[i] - arrY2[i];
+                const diff2 = arrY1[i+1] - arrY2[i+1];
+                
+                // Sign change indicates intersection
+                if (diff1 * diff2 <= 0 && diff1 !== 0) {
+                    // Linear interpolation to find more accurate intersection point
+                    const x1 = arrX[i];
+                    const x2 = arrX[i+1];
+                    const y1_1 = arrY1[i];
+                    const y1_2 = arrY1[i+1];
+                    const y2_1 = arrY2[i];
+                    const y2_2 = arrY2[i+1];
+                    
+                    // Find fraction where curves intersect
+                    const fraction = Math.abs(diff1) / (Math.abs(diff1) + Math.abs(diff2));
+                    const xIntersect = x1 + fraction * (x2 - x1);
+                    const yIntersect = y1_1 + fraction * (y1_2 - y1_1);
+                    
+                    // Calculate slope at intersection point
+                    const dG = (y1_2 - y1_1) / (x2 - x1);
+                    const dR = (y2_2 - y2_1) / (x2 - x1);
+                    
+                    intersections.push({
+                        x: xIntersect,
+                        y: yIntersect,
+                        isStable: dG <= dR,
+                        dG: dG,
+                        dR: dR
+                    });
+                }
+            }
+            return intersections;
+        }
+        
+        // Calculate G(T) for heat generation
+        function calculateG(T, deltaH, tau, A, E, R, CA0, order) {
+            const result = new Array(T.length);
+            
+            for (let i = 0; i < T.length; i++) {
+                const kT = A * Math.exp(-E / (R * T[i]));
+                
+                if (order === 1) {
+                    result[i] = -deltaH * (tau * kT * CA0) / (1.0 + tau * kT);
+                } else {
+                    const disc = Math.sqrt(1.0 + 4.0 * tau * CA0 * kT);
+                    const numer = (2.0 * tau * CA0 * kT + 1.0) - disc;
+                    const denom = 2.0 * tau * CA0 * kT;
+                    result[i] = -deltaH * numer / denom;
+                }
+            }
+            
+            return result;
+        }
+        
+        // Generate array of temperatures
+        function generateTemperatureArray(tMin, tMax, tStep) {
+            const result = [];
+            for (let t = tMin; t <= tMax; t += tStep) {
+                result.push(t);
+            }
+            return result;
+        }
+        
+        // Plot curves
+        function plotCurves() {
+            // Get parameters from inputs
+            const order = parseInt(document.getElementById('reaction-order').value);
+            const deltaH = parseFloat(document.getElementById('delta-h').value);
+            const tau = parseFloat(document.getElementById('tau').value);
+            const A = parseFloat(document.getElementById('pre-exp').value);
+            const E = parseFloat(document.getElementById('activation-energy').value);
+            const R = parseFloat(document.getElementById('gas-constant').value);
+            const CA0 = parseFloat(document.getElementById('initial-concentration').value);
+            const Cp0 = parseFloat(document.getElementById('cp0').value);
+            const kappa = parseFloat(document.getElementById('kappa').value);
+            const coolantTemps = document.getElementById('coolant-temps').value
+                .split(',')
+                .map(t => parseFloat(t.trim()))
+                .filter(t => !isNaN(t));
+            const tMin = parseFloat(document.getElementById('t-min').value);
+            const tMax = parseFloat(document.getElementById('t-max').value);
+            const tStep = parseFloat(document.getElementById('t-step').value);
+            
+            // Validate inputs
+            if (tMin >= tMax || tStep <= 0 || tau <= 0 || coolantTemps.length === 0) {
+                alert('Check Tmin, Tmax, Tstep, τ, and Tc values.');
+                return;
+            }
+            
+            // Generate temperature array
+            const T = generateTemperatureArray(tMin, tMax, tStep);
+            
+            // Calculate heat generation curve G(T)
+            const G = calculateG(T, deltaH, tau, A, E, R, CA0, order);
+            
+            // Prepare chart datasets
+            const datasets = [
+                {
+                    label: 'G(T): Heat Generation',
+                    data: G.map((y, i) => ({ x: T[i], y })),
+                    borderColor: '#ff7043', // Orange-red for heat generation
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    fill: false,
+                    tension: 0.1
+                }
+            ];
+            
+            // Clear console
+            const consoleEl = document.getElementById('console');
+            consoleEl.innerHTML = '';
+            
+            // Process each coolant temperature
+            const stablePoints = [];
+            const unstablePoints = [];
+            
+            coolantTemps.forEach((Tc, index) => {
+                // Calculate heat removal curve R(T)
+                const R = T.map(t => Cp0 * (1 + kappa) * (t - Tc));
+                
+                // Add to datasets with unique color
+                const colors = ['#5c6bc0', '#42a5f5', '#26c6da', '#26a69a'];
+                const colorIndex = index % colors.length;
+                
+                datasets.push({
+                    label: `R(T), T_c=${Tc.toFixed(1)} K`,
+                    data: R.map((y, i) => ({ x: T[i], y })),
+                    borderColor: colors[colorIndex],
+                    backgroundColor: 'transparent',
+                    borderWidth: 1.5,
+                    borderDash: [3, 3],
+                    fill: false,
+                    tension: 0.1
+                });
+                
+                // Find intersections
+                const intersections = findIntersections(T, G, R);
+                
+                // Add to console and collect points for scatter plot
+                intersections.forEach(point => {
+                    const stability = point.isStable ? 'Stable' : 'Unstable';
+                    const consoleEntry = document.createElement('div');
+                    consoleEntry.className = 'console-entry';
+                    consoleEntry.innerHTML = `T<sub>c</sub>=${Tc.toFixed(1)}K: Intersection at T=${point.x.toFixed(2)} K → <span class="${stability.toLowerCase()}">${stability}</span> (dG/dT=${point.dG.toFixed(2)}, dR/dT=${point.dR.toFixed(2)})`;
+                    consoleEl.appendChild(consoleEntry);
+                    
+                    if (point.isStable) {
+                        stablePoints.push({ x: point.x, y: point.y });
+                    } else {
+                        unstablePoints.push({ x: point.x, y: point.y });
+                    }
+                });
+            });
+            
+            // Add stable and unstable points as separate datasets
+            if (stablePoints.length > 0) {
+                datasets.push({
+                    label: 'Stable Points',
+                    data: stablePoints,
+                    backgroundColor: '#66bb6a', // Different green for stable points
+                    borderColor: '#2e7d32',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    showLine: false
+                });
+            }
+            
+            if (unstablePoints.length > 0) {
+                datasets.push({
+                    label: 'Unstable Points',
+                    data: unstablePoints,
+                    backgroundColor: '#ef5350', // Different red for unstable points
+                    borderColor: '#c62828',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    pointStyle: 'rect',
+                    showLine: false
+                });
+            }
+            
+            // Create or update chart
+            const ctx = document.getElementById('curve-chart').getContext('2d');
+            
+            if (curveChart) {
+                curveChart.destroy();
+            }
+            
+            curveChart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Temperature (K)',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Heat Flow (W)',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    return `T: ${point.x.toFixed(1)} K, Heat: ${point.y.toFixed(1)} W`;
+                                }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Ignition–Extinction Curves',
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Add event listener for plot button
+        document.getElementById('plot-btn').addEventListener('click', plotCurves);
+        
+        // Initialize the plot on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            plotCurves();
+        });
+    </script>
+</body>
+</html>

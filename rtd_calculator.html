@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTD Moment Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .file-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            border: 2px dashed #3498db;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+        .file-input:hover {
+            background-color: #f7f9fa;
+        }
+        .file-input input {
+            display: none;
+        }
+        .file-input label {
+            cursor: pointer;
+            color: #3498db;
+            font-weight: bold;
+        }
+        #file-name {
+            margin-top: 10px;
+            font-style: italic;
+        }
+        .charts {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 100%;
+        }
+        .chart-container {
+            height: 300px;
+            width: 100%;
+        }
+        #results {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            display: none;
+        }
+        #warning {
+            color: red;
+            text-align: center;
+            margin: 10px 0;
+            font-style: italic;
+            display: none;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        #example-btn {
+            background-color: #27ae60;
+        }
+        #example-btn:hover {
+            background-color: #2ecc71;
+        }
+        .instructions {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>RTD Moment Calculator with Diagnosis</h1>
+    
+    <div class="instructions">
+        <h3>Instructions:</h3>
+        <p>Upload a CSV file with two columns: Time and E(t) values. The first column should contain time data and the second column should contain the RTD function E(t) values.</p>
+        <p>The calculator will normalize E(t) if needed, calculate the residence time distribution moments, and provide a diagnosis of your reactor's behavior.</p>
+        <button id="example-btn">Load Example Data</button>
+    </div>
+
+    <div class="container">
+        <div class="file-input" id="drop-area">
+            <input type="file" id="csv-file" accept=".csv">
+            <label for="csv-file">Click to upload a CSV file or drag and drop</label>
+            <div id="file-name"></div>
+        </div>
+        
+        <div id="warning"></div>
+        
+        <div id="results"></div>
+        
+        <div class="charts">
+            <div class="chart-container">
+                <canvas id="etChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="ftChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let etChart = null;
+        let ftChart = null;
+        
+        // Setup the file drop area
+        const dropArea = document.getElementById('drop-area');
+        const fileInput = document.getElementById('csv-file');
+        const fileNameDisplay = document.getElementById('file-name');
+        
+        // Prevent default drag behaviors
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // Highlight drop area when item is dragged over it
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight() {
+            dropArea.style.backgroundColor = '#e3f2fd';
+        }
+        
+        function unhighlight() {
+            dropArea.style.backgroundColor = '';
+        }
+        
+        // Handle dropped files
+        dropArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length) {
+                fileInput.files = files;
+                handleFiles(files);
+            }
+        }
+        
+        // Handle selected files
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+        
+        function handleFiles(files) {
+            if (files.length) {
+                const file = files[0];
+                fileNameDisplay.textContent = file.name;
+                processCSV(file);
+            }
+        }
+        
+        // Process the CSV file
+        function processCSV(file) {
+            Papa.parse(file, {
+                header: false,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processData(results.data);
+                },
+                error: function(error) {
+                    console.error("Error parsing CSV:", error);
+                    alert("Error parsing CSV file. Please check the format.");
+                }
+            });
+        }
+        
+        // Process the data from CSV
+        function processData(data) {
+            try {
+                // Extract t and E columns
+                // First row might be headers, so check if it contains strings
+                const startRow = typeof data[0][0] === 'string' && typeof data[0][1] === 'string' ? 1 : 0;
+                
+                // Create t and E arrays
+                const t = data.slice(startRow).map(row => row[0]);
+                const E = data.slice(startRow).map(row => row[1]);
+                
+                // Check if the data is valid
+                if (t.some(isNaN) || E.some(isNaN)) {
+                    throw new Error("Invalid data in CSV file. Please check that all values are numbers.");
+                }
+                
+                // Calculate the area under E(t)
+                const area = trapezoidalIntegration(t, E);
+                
+                // Normalize E(t) if needed
+                let normalizedE = E;
+                let showWarning = false;
+                
+                if (!isClose(area, 1.0, 0.01)) {
+                    normalizedE = E.map(val => val / area);
+                    showWarning = true;
+                    document.getElementById('warning').style.display = 'block';
+                    document.getElementById('warning').textContent = `Note: E(t) was normalized (original area = ${area.toFixed(4)})`;
+                } else {
+                    document.getElementById('warning').style.display = 'none';
+                }
+                
+                // Calculate mean residence time (τ)
+                const tau = weightedTrapezoidalIntegration(t, t.map((val, i) => val * normalizedE[i]));
+                
+                // Calculate central moments
+                const variance = weightedTrapezoidalIntegration(t, 
+                    t.map((val, i) => Math.pow(val - tau, 2) * normalizedE[i]));
+                
+                const thirdMoment = weightedTrapezoidalIntegration(t, 
+                    t.map((val, i) => Math.pow(val - tau, 3) * normalizedE[i]));
+                
+                // Calculate skewness and Peclet number
+                const skewness = variance > 0 ? thirdMoment / Math.pow(variance, 1.5) : 0;
+                const peclet = variance > 0 ? (tau * tau) / variance : Infinity;
+                
+                // Calculate F(t) - cumulative distribution
+                const F = cumulativeTrapz(t, normalizedE);
+                
+                // Diagnosis logic
+                let diagnosis = '';
+                if (skewness > 1) {
+                    diagnosis = "Strong channeling or poor mixing.";
+                } else if (skewness < -1) {
+                    diagnosis = "Dead zones or backmixing.";
+                } else if (peclet > 100) {
+                    diagnosis = "Plug flow behavior.";
+                } else if (peclet < 5) {
+                    diagnosis = "Close to CSTR behavior.";
+                } else {
+                    diagnosis = "Moderate axial dispersion.";
+                }
+                
+                // Display results
+                const results = document.getElementById('results');
+                results.style.display = 'block';
+                results.textContent = `Results from: ${fileNameDisplay.textContent || 'Uploaded file'}
+-------------------------------------------------
+Mean Residence Time (τ): ${tau.toFixed(4)}
+Variance: ${variance.toFixed(4)}
+Skewness: ${skewness.toFixed(4)}
+Peclet Number: ${isFinite(peclet) ? peclet.toFixed(2) : "∞"}
+Diagnosis: ${diagnosis}`;
+                
+                // Plot E(t) and F(t)
+                updateCharts(t, normalizedE, F);
+                
+            } catch (error) {
+                console.error("Error processing data:", error);
+                alert("Error processing data: " + error.message);
+            }
+        }
+        
+        // Update charts
+        function updateCharts(t, E, F) {
+            const etCtx = document.getElementById('etChart').getContext('2d');
+            const ftCtx = document.getElementById('ftChart').getContext('2d');
+            
+            // Destroy previous charts if they exist
+            if (etChart) etChart.destroy();
+            if (ftChart) ftChart.destroy();
+            
+            // Create E(t) chart
+            etChart = new Chart(etCtx, {
+                type: 'line',
+                data: {
+                    labels: t,
+                    datasets: [{
+                        label: 'E(t)',
+                        data: E,
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Residence Time Distribution'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'E(t)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create F(t) chart
+            ftChart = new Chart(ftCtx, {
+                type: 'line',
+                data: {
+                    labels: t,
+                    datasets: [{
+                        label: 'F(t)',
+                        data: F,
+                        borderColor: 'rgb(75, 192, 75)',
+                        backgroundColor: 'rgba(75, 192, 75, 0.1)',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Cumulative Distribution Function'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'F(t)'
+                            },
+                            min: 0,
+                            max: 1
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Load example data
+        document.getElementById('example-btn').addEventListener('click', function() {
+            const exampleData = [];
+            
+            // Create example time points from 0 to 10
+            const times = Array.from({length: 100}, (_, i) => i * 0.1);
+            
+            // Create an example E(t) curve (log-normal-like)
+            times.forEach(t => {
+                // Skip t=0 to avoid division by zero
+                if (t > 0) {
+                    // Using a log-normal-like distribution
+                    const mean = 3;
+                    const sigma = 0.5;
+                    const et = (1/(t*sigma*Math.sqrt(2*Math.PI))) * 
+                            Math.exp(-Math.pow(Math.log(t) - mean, 2)/(2*sigma*sigma));
+                    exampleData.push([t, et]);
+                } else {
+                    exampleData.push([t, 0]);
+                }
+            });
+            
+            fileNameDisplay.textContent = "example_rtd_data.csv";
+            processData(exampleData);
+        });
+        
+        // Helper functions
+        
+        // Simple trapezoidal integration
+        function trapezoidalIntegration(x, y) {
+            let sum = 0;
+            for (let i = 1; i < x.length; i++) {
+                sum += (x[i] - x[i-1]) * (y[i] + y[i-1]) / 2;
+            }
+            return sum;
+        }
+        
+        // Weighted trapezoidal integration
+        function weightedTrapezoidalIntegration(x, y) {
+            return trapezoidalIntegration(x, y);
+        }
+        
+        // Cumulative trapezoidal integration
+        function cumulativeTrapz(x, y) {
+            const result = [0];
+            let sum = 0;
+            
+            for (let i = 1; i < x.length; i++) {
+                sum += (x[i] - x[i-1]) * (y[i] + y[i-1]) / 2;
+                result.push(sum);
+            }
+            
+            return result;
+        }
+        
+        // Function to check if two numbers are close
+        function isClose(a, b, tolerance) {
+            return Math.abs(a - b) <= tolerance;
+        }
+    </script>
+</body>
+</html>

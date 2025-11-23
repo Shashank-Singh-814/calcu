@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PFR Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2980b9;
+            --accent-color: #e74c3c;
+            --light-bg: #f5f7fa;
+            --dark-text: #2c3e50;
+            --light-text: #ecf0f1;
+            --success-color: #2ecc71;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            color: var(--dark-text);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+        }
+        
+        header h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            color: var(--dark-text);
+            opacity: 0.8;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .input-panel {
+            flex: 1;
+            min-width: 300px;
+            background-color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        .input-group input:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+        
+        .input-group .unit {
+            color: #777;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            flex: 2;
+        }
+        
+        .btn-secondary {
+            background-color: #e0e0e0;
+            color: var(--dark-text);
+            flex: 1;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+        
+        .btn-secondary:hover {
+            background-color: #d0d0d0;
+        }
+        
+        .results-panel {
+            flex: 2;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .chart-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            height: 350px;
+        }
+        
+        .chart-container h3 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+        
+        .calculations-output {
+            background-color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+        
+        .result-card {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .result-card h3 {
+            margin-bottom: 5px;
+        }
+        
+        .result-card .result-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            font-size: 14px;
+            color: #777;
+        }
+        
+        .error-message {
+            background-color: rgba(231, 76, 60, 0.1);
+            border-left: 4px solid var(--accent-color);
+            padding: 10px 15px;
+            margin: 10px 0;
+            color: var(--accent-color);
+            border-radius: 4px;
+            display: none;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .input-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Tabs for charts */
+        .tab-container {
+            display: flex;
+            margin-bottom: 10px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background-color: #e0e0e0;
+            border: none;
+            cursor: pointer;
+            border-radius: var(--border-radius) var(--border-radius) 0 0;
+            margin-right: 5px;
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .preset-section {
+            margin-bottom: 20px;
+            background-color: #f0f8ff;
+            padding: 15px;
+            border-radius: var(--border-radius);
+            border: 1px solid #d0e3f7;
+        }
+        
+        .preset-section h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .preset-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .preset-btn {
+            background-color: #deeaf7;
+            color: var(--dark-text);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            border: 1px solid #c4d8ef;
+        }
+        
+        .preset-btn:hover {
+            background-color: #c4d8ef;
+        }
+        
+        .info-tooltip {
+            display: inline-block;
+            position: relative;
+            margin-left: 5px;
+            cursor: help;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+        
+        .tooltip-text {
+            visibility: hidden;
+            width: 250px;
+            background-color: #333;
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -125px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        
+        .info-tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Plug Flow Reactor (PFR) Calculator</h1>
+            <p>Calculate temperature, conversion, and required reactor volume for PFR systems</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="input-panel">
+                <div class="preset-section">
+                    <h3>Example Presets</h3>
+                    <div class="preset-buttons">
+                        <button class="preset-btn" id="preset1">Exothermic Reaction</button>
+                        <button class="preset-btn" id="preset2">Endothermic Reaction</button>
+                        <button class="preset-btn" id="preset3">High Conversion Case</button>
+                    </div>
+                </div>
+                
+                <h2>Input Parameters</h2>
+                <div class="error-message" id="errorMessage"></div>
+                <div class="input-grid">
+                    <div class="input-group">
+                        <label for="T0">
+                            Initial Temperature <span class="info-tooltip">?
+                                <span class="tooltip-text">The temperature at the reactor entrance</span>
+                            </span>
+                        </label>
+                        <input type="number" id="T0" value="300" step="1">
+                        <div class="unit">K</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="deltaH">
+                            Reaction Enthalpy <span class="info-tooltip">?
+                                <span class="tooltip-text">Heat released or absorbed by the reaction</span>
+                            </span>
+                        </label>
+                        <input type="number" id="deltaH" value="-50000" step="1000">
+                        <div class="unit">J/mol</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="k_T1">
+                            Reference Rate Constant <span class="info-tooltip">?
+                                <span class="tooltip-text">Rate constant at reference temperature T1</span>
+                            </span>
+                        </label>
+                        <input type="number" id="k_T1" value="0.1" step="0.01">
+                        <div class="unit">s⁻¹</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="T1">Reference Temperature T1</label>
+                        <input type="number" id="T1" value="300" step="1">
+                        <div class="unit">K</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="E">
+                            Activation Energy <span class="info-tooltip">?
+                                <span class="tooltip-text">Energy barrier for the reaction</span>
+                            </span>
+                        </label>
+                        <input type="number" id="E" value="40000" step="1000">
+                        <div class="unit">J/mol</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="Kc_T2">
+                            Reference Equilibrium Constant <span class="info-tooltip">?
+                                <span class="tooltip-text">Equilibrium constant at temperature T2</span>
+                            </span>
+                        </label>
+                        <input type="number" id="Kc_T2" value="10" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label for="T2">Reference Temperature T2</label>
+                        <input type="number" id="T2" value="300" step="1">
+                        <div class="unit">K</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="CpA">
+                            Heat Capacity of A <span class="info-tooltip">?
+                                <span class="tooltip-text">Heat capacity of reactant A</span>
+                            </span>
+                        </label>
+                        <input type="number" id="CpA" value="75" step="1">
+                        <div class="unit">J/(mol·K)</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="CpB">
+                            Heat Capacity of B <span class="info-tooltip">?
+                                <span class="tooltip-text">Heat capacity of product B</span>
+                            </span>
+                        </label>
+                        <input type="number" id="CpB" value="100" step="1">
+                        <div class="unit">J/(mol·K)</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="FA0">
+                            Initial Molar Flow Rate <span class="info-tooltip">?
+                                <span class="tooltip-text">Molar flow rate of reactant A at entrance</span>
+                            </span>
+                        </label>
+                        <input type="number" id="FA0" value="5" step="0.1">
+                        <div class="unit">mol/s</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="theta">
+                            Θ <span class="info-tooltip">?
+                                <span class="tooltip-text">Stoichiometric coefficient ratio</span>
+                            </span>
+                        </label>
+                        <input type="number" id="theta" value="1" step="0.1">
+                    </div>
+                    <div class="input-group">
+                        <label for="CA0">
+                            Initial Concentration <span class="info-tooltip">?
+                                <span class="tooltip-text">Concentration of reactant A at entrance</span>
+                            </span>
+                        </label>
+                        <input type="number" id="CA0" value="1" step="0.1">
+                        <div class="unit">mol/L</div>
+                    </div>
+                    <div class="input-group">
+                        <label for="X_desired">
+                            Desired Conversion <span class="info-tooltip">?
+                                <span class="tooltip-text">Target conversion fraction (0-1)</span>
+                            </span>
+                        </label>
+                        <input type="number" id="X_desired" value="0.8" min="0" max="1" step="0.01">
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="btn-primary" id="calculateBtn">Calculate</button>
+                    <button class="btn-secondary" id="resetBtn">Reset</button>
+                </div>
+            </div>
+            
+            <div class="results-panel">
+                <div class="tab-container">
+                    <button class="tab active" id="conversionTab">Conversion vs Volume</button>
+                    <button class="tab" id="temperatureTab">Temperature vs Volume</button>
+                    <button class="tab" id="rateTab">Reaction Rate vs Volume</button>
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="resultsChart"></canvas>
+                </div>
+                
+                <div class="calculations-output">
+                    <h3>Calculation Results</h3>
+                    <div id="calculationSummary">
+                        <p>Enter values and click Calculate to see results</p>
+                    </div>
+                    
+                    <div class="result-card" id="resultCard" style="display: none;">
+                        <h3>Required PFR Volume:</h3>
+                        <div class="result-value" id="finalVolume">--</div>
+                        <p>m³</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>PFR Calculator © 2025 | Based on principles of chemical reaction engineering</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Constants
+            const R = 8.314; // Universal gas constant in J/(mol·K)
+            
+            // DOM Elements
+            const calculateBtn = document.getElementById('calculateBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const errorMessage = document.getElementById('errorMessage');
+            const resultCard = document.getElementById('resultCard');
+            const finalVolume = document.getElementById('finalVolume');
+            const calculationSummary = document.getElementById('calculationSummary');
+            
+            // Chart setup
+            const ctx = document.getElementById('resultsChart').getContext('2d');
+            let resultsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Conversion',
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        data: []
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Volume (m³)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Conversion (X)'
+                            },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Tab switching
+            const tabs = document.querySelectorAll('.tab');
+            const conversionTab = document.getElementById('conversionTab');
+            const temperatureTab = document.getElementById('temperatureTab');
+            const rateTab = document.getElementById('rateTab');
+            
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    tabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update chart based on active tab
+                    if (resultsChart.data.datasets.length > 0) {
+                        updateChartDisplay();
+                    }
+                });
+            });
+            
+            function updateChartDisplay() {
+                if (conversionTab.classList.contains('active')) {
+                    resultsChart.data.datasets[0].label = 'Conversion';
+                    resultsChart.data.datasets[0].data = conversionData;
+                    resultsChart.options.scales.y.title.text = 'Conversion (X)';
+                    resultsChart.options.scales.y.beginAtZero = true;
+                    resultsChart.data.datasets[0].borderColor = '#3498db';
+                    resultsChart.data.datasets[0].backgroundColor = 'rgba(52, 152, 219, 0.1)';
+                } else if (temperatureTab.classList.contains('active')) {
+                    resultsChart.data.datasets[0].label = 'Temperature';
+                    resultsChart.data.datasets[0].data = temperatureData;
+                    resultsChart.options.scales.y.title.text = 'Temperature (K)';
+                    resultsChart.options.scales.y.beginAtZero = false;
+                    resultsChart.data.datasets[0].borderColor = '#e74c3c';
+                    resultsChart.data.datasets[0].backgroundColor = 'rgba(231, 76, 60, 0.1)';
+                } else if (rateTab.classList.contains('active')) {
+                    resultsChart.data.datasets[0].label = 'Reaction Rate';
+                    resultsChart.data.datasets[0].data = rateData;
+                    resultsChart.options.scales.y.title.text = 'Reaction Rate (mol/L·s)';
+                    resultsChart.options.scales.y.beginAtZero = true;
+                    resultsChart.data.datasets[0].borderColor = '#2ecc71';
+                    resultsChart.data.datasets[0].backgroundColor = 'rgba(46, 204, 113, 0.1)';
+                }
+                
+                resultsChart.update('none'); // Use 'none' to prevent animation during tab switching
+            }
+            
+            // Global data arrays
+            let volumePoints = [];
+            let conversionData = [];
+            let temperatureData = [];
+            let rateData = [];
+            
+            // Calculate button click handler
+            calculateBtn.addEventListener('click', calculate);
+            
+            // Reset button click handler
+            resetBtn.addEventListener('click', function() {
+                document.querySelectorAll('input').forEach(input => {
+                    input.value = input.defaultValue;
+                });
+                errorMessage.style.display = 'none';
+                resultCard.style.display = 'none';
+                calculationSummary.innerHTML = '<p>Enter values and click Calculate to see results</p>';
+                
+                // Reset chart
+                resultsChart.data.labels = [];
+                resultsChart.data.datasets[0].data = [];
+                resultsChart.update();
+            });
+            
+            // Presets
+            document.getElementById('preset1').addEventListener('click', function() {
+                setPresetValues({
+                    T0: 350,
+                    deltaH: -60000,
+                    k_T1: 0.15,
+                    T1: 350,
+                    E: 45000,
+                    Kc_T2: 15,
+                    T2: 350,
+                    CpA: 80,
+                    CpB: 95,
+                    FA0: 8,
+                    theta: 1,
+                    CA0: 2,
+                    X_desired: 0.85
+                });
+            });
+            
+            document.getElementById('preset2').addEventListener('click', function() {
+                setPresetValues({
+                    T0: 400,
+                    deltaH: 40000,
+                    k_T1: 0.08,
+                    T1: 400,
+                    E: 50000,
+                    Kc_T2: 5,
+                    T2: 400,
+                    CpA: 70,
+                    CpB: 90,
+                    FA0: 6,
+                    theta: 1,
+                    CA0: 1.5,
+                    X_desired: 0.7
+                });
+            });
+            
+            document.getElementById('preset3').addEventListener('click', function() {
+                setPresetValues({
+                    T0: 380,
+                    deltaH: -55000,
+                    k_T1: 0.2,
+                    T1: 380,
+                    E: 48000,
+                    Kc_T2: 20,
+                    T2: 380,
+                    CpA: 75,
+                    CpB: 100,
+                    FA0: 10,
+                    theta: 1,
+                    CA0: 2.5,
+                    X_desired: 0.95
+                });
+            });
+            
+            function setPresetValues(values) {
+                for (const [key, value] of Object.entries(values)) {
+                    document.getElementById(key).value = value;
+                }
+            }
+            
+            function calculate() {
+                try {
+                    // Collect input values
+                    const params = {};
+                    document.querySelectorAll('.input-group input').forEach(input => {
+                        params[input.id] = parseFloat(input.value);
+                    });
+                    
+                    // Validate inputs
+                    for (const [key, value] of Object.entries(params)) {
+                        if (isNaN(value)) {
+                            throw new Error(`Please enter a valid number for ${key}`);
+                        }
+                    }
+                    
+                    // Additional validations
+                    if (params.X_desired <= 0 || params.X_desired > 0.99) {
+                        throw new Error("Desired conversion should be between 0 and 0.99");
+                    }
+                    
+                    // Calculate functions
+                    function calculateTemperature(X) {
+                        return params.T0 + (-params.deltaH * X) / (params.CpA + params.theta * params.CpB);
+                    }
+                    
+                    function calculateRateConstant(T) {
+                        return params.k_T1 * Math.exp((params.E / R) * (1/params.T1 - 1/T));
+                    }
+                    
+                    function calculateEquilibriumConstant(T) {
+                        return params.Kc_T2 * Math.exp((params.deltaH / R) * (1/params.T2 - 1/T));
+                    }
+                    
+                    function calculateReactionRate(X) {
+                        const T_current = calculateTemperature(X);
+                        const k_current = calculateRateConstant(T_current);
+                        const Kc_current = calculateEquilibriumConstant(T_current);
+                        
+                        // Prevent division by zero
+                        const denominator = 1 + 1/Math.max(Kc_current, 1e-10);
+                        return k_current * params.CA0 * (1 - denominator * X);
+                    }
+                    
+                    // Generate data points
+                    const numPoints = 500;
+                    const X_points = Array.from({length: numPoints}, (_, i) => i * params.X_desired / (numPoints - 1));
+                    const dX = X_points[1] - X_points[0];
+                    
+                    volumePoints = [0];
+                    const T_points = [params.T0];
+                    const rate_points = [calculateReactionRate(0)];
+                    
+                    // Numerical integration
+                    for (let i = 1; i < numPoints; i++) {
+                        const X = X_points[i];
+                        const rA = calculateReactionRate(X);
+                        
+                        // Check if reaction rate is valid
+                        if (isNaN(rA) || rA <= 0) {
+                            // If we hit equilibrium or invalid rate, truncate the data
+                            volumePoints.push(volumePoints[i-1] + params.FA0 * dX / Math.max(1e-10, rA));
+                            T_points.push(calculateTemperature(X));
+                            rate_points.push(Math.max(0, rA));
+                            
+                            // Update X_desired to the last valid point
+                            params.X_desired = X_points[i-1];
+                            break;
+                        }
+                        
+                        volumePoints.push(volumePoints[i-1] + params.FA0 * dX / rA);
+                        T_points.push(calculateTemperature(X));
+                        rate_points.push(rA);
+                    }
+                    
+                    // Prepare chart data
+                    // Ensure arrays are of equal length by truncating to the shortest one
+                    const dataLength = Math.min(X_points.length, volumePoints.length, T_points.length, rate_points.length);
+                    
+                    // Create properly formatted data for Chart.js
+                    conversionData = [];
+                    temperatureData = [];
+                    rateData = [];
+                    
+                    for (let i = 0; i < dataLength; i++) {
+                        conversionData.push({
+                            x: volumePoints[i],
+                            y: X_points[i]
+                        });
+                        
+                        temperatureData.push({
+                            x: volumePoints[i],
+                            y: T_points[i]
+                        });
+                        
+                        rateData.push({
+                            x: volumePoints[i],
+                            y: rate_points[i]
+                        });
+                    }
+                    
+                    // Clear old chart data
+                    resultsChart.data.datasets[0].data = [];
+                    
+                    // Set the appropriate data based on active tab
+                    if (conversionTab.classList.contains('active')) {
+                        resultsChart.data.datasets[0].data = conversionData;
+                    } else if (temperatureTab.classList.contains('active')) {
+                        resultsChart.data.datasets[0].data = temperatureData;
+                    } else {
+                        resultsChart.data.datasets[0].data = rateData;
+                    }
+                    
+                    // Update chart display
+                    updateChartDisplay();
+                    
+                    // Display results
+                    const final_volume = volumePoints[volumePoints.length - 1].toFixed(3);
+                    finalVolume.textContent = final_volume;
+                    resultCard.style.display = 'block';
+                    
+                    // Update calculation summary
+                    const final_temp = T_points[T_points.length - 1].toFixed(2);
+                    const max_temp = Math.max(...T_points).toFixed(2);
+                    const max_temp_index = T_points.indexOf(Math.max(...T_points));
+                    const max_temp_position = (volumePoints[max_temp_index] / final_volume * 100).toFixed(1);
+                    
+                    calculationSummary.innerHTML = `
+                        <p><strong>Initial Temperature:</strong> ${params.T0} K</p>
+                        <p><strong>Final Temperature:</strong> ${final_temp} K</p>
+                        <p><strong>Maximum Temperature:</strong> ${max_temp} K (at ${max_temp_position}% of reactor length)</p>
+                        <p><strong>Final Conversion:</strong> ${(X_points[X_points.length-1] * 100).toFixed(1)}%</p>
+                        <p><strong>Required Reactor Volume:</strong> ${final_volume} m³</p>
+                    `;
+                    
+                    // Hide error message if present
+                    errorMessage.style.display = 'none';
+                    
+                } catch (error) {
+                    // Display error message
+                    errorMessage.textContent = error.message;
+                    errorMessage.style.display = 'block';
+                    resultCard.style.display = 'none';
+                }
+            }
+            
+            // Run initial calculation with default values
+            calculate();
+        });
+    </script>
+</body>
+</html>

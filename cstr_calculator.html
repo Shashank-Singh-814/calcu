@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSTR Calculator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.24.2/plotly.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --light-gray: #f8f9fa;
+            --dark-gray: #343a40;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: var(--dark-gray);
+            background-color: #f0f4f8;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
+        header {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 20px 0;
+            border-radius: var(--border-radius);
+            margin-bottom: 20px;
+            text-align: center;
+            box-shadow: var(--box-shadow);
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 2.2rem;
+        }
+        
+        .content {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1000px) {
+            .content {
+                flex-direction: column;
+            }
+        }
+        
+        .input-panel {
+            flex: 1;
+            background-color: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+            max-width: 500px;
+            overflow-y: auto;
+        }
+        
+        .plot-panel {
+            flex: 2;
+            background-color: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            box-shadow: var(--box-shadow);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .group-box {
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .group-box h3 {
+            color: var(--secondary-color);
+            margin-top: 0;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 8px;
+            font-size: 1.2rem;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: var(--secondary-color);
+        }
+        
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+        }
+        
+        input[type="text"]:focus, input[type="number"]:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+        }
+        
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .results {
+            background-color: var(--light-gray);
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .results h3 {
+            color: var(--secondary-color);
+            margin-top: 0;
+            font-size: 1.2rem;
+        }
+        
+        .result-content {
+            white-space: pre-line;
+            font-family: monospace;
+        }
+        
+        #plot {
+            flex: 1;
+            min-height: 400px;
+            border: 1px solid #dee2e6;
+            border-radius: var(--border-radius);
+        }
+        
+        .debug-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: var(--border-radius);
+            border-left: 4px solid var(--primary-color);
+            font-size: 0.85rem;
+            white-space: pre-line;
+            overflow-x: auto;
+        }
+        
+        .input-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 20px 0 10px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>CSTR Calculator</h1>
+            <p>Continuous Stirred Tank Reactor Analysis Tool</p>
+        </header>
+        
+        <div class="content">
+            <div class="input-panel">
+                <div class="group-box">
+                    <h3>Reaction Parameters</h3>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="FA0">FA0 (mol/s):</label>
+                            <input type="number" id="FA0" value="0.1" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="CA0">CA0 (mol/L):</label>
+                            <input type="number" id="CA0" value="2.0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="a">Frequency Factor (1/s):</label>
+                        <input type="number" id="a" value="7e10">
+                    </div>
+                    <div class="form-group">
+                        <label for="E">Activation Energy (J/mol):</label>
+                        <input type="number" id="E" value="83680">
+                    </div>
+                    <div class="form-group">
+                        <label for="V">Reactor Volume (L):</label>
+                        <input type="number" id="V" value="10" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="group-box">
+                    <h3>Thermodynamic Parameters</h3>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="Theta_B">Theta_B:</label>
+                            <input type="number" id="Theta_B" value="2.0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="Theta_C">Theta_C:</label>
+                            <input type="number" id="Theta_C" value="1.0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="Theta_M">Theta_M:</label>
+                            <input type="number" id="Theta_M" value="1.0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="T_0">Feed Temp T_0 (K):</label>
+                            <input type="number" id="T_0" value="300" step="1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="T_R">Reference Temp T_R (K):</label>
+                        <input type="number" id="T_R" value="298" step="1">
+                    </div>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="CpA">CpA (J/mol·K):</label>
+                            <input type="number" id="CpA" value="75.0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="CpB">CpB (J/mol·K):</label>
+                            <input type="number" id="CpB" value="75.0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="CpC">CpC (J/mol·K):</label>
+                            <input type="number" id="CpC" value="150.0" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="CpM">CpM (J/mol·K):</label>
+                            <input type="number" id="CpM" value="150.0" step="0.1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="deltaH">ΔH°Rx (J/mol):</label>
+                        <input type="number" id="deltaH" value="-60000" step="1000">
+                    </div>
+                </div>
+                
+                <button id="calculate-btn">Calculate</button>
+                
+                <div class="results">
+                    <h3>Results</h3>
+                    <div id="result-text" class="result-content">Results will appear here</div>
+                </div>
+            </div>
+            
+            <div class="plot-panel">
+                <div id="plot"></div>
+                <div id="debug-info" class="debug-info">Calculation details will appear here after calculation.</div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>CSTR Calculator | Chemical Engineering Tools</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize plot with default empty state
+            const plotDiv = document.getElementById('plot');
+            Plotly.newPlot(plotDiv, [], {
+                title: 'CSTR Conversion vs Temperature',
+                xaxis: { title: 'Temperature (K)' },
+                yaxis: { title: 'Conversion (X)', range: [0, 1] },
+                grid: { rows: 1, columns: 1 },
+                autosize: true,
+                margin: { l: 50, r: 20, b: 50, t: 50, pad: 4 }
+            });
+
+            // Resize plot when window resizes
+            window.addEventListener('resize', function() {
+                Plotly.relayout(plotDiv, {
+                    autosize: true
+                });
+            });
+
+            document.getElementById('calculate-btn').addEventListener('click', calculate);
+
+            // Initial calculation to show default plot
+            calculate();
+
+            function calculate() {
+                try {
+                    // Get input values
+                    const params = {
+                        FA0: parseFloat(document.getElementById('FA0').value),
+                        CA0: parseFloat(document.getElementById('CA0').value),
+                        a: parseFloat(document.getElementById('a').value),
+                        E: parseFloat(document.getElementById('E').value),
+                        V: parseFloat(document.getElementById('V').value),
+                        Theta_B: parseFloat(document.getElementById('Theta_B').value),
+                        Theta_C: parseFloat(document.getElementById('Theta_C').value),
+                        Theta_M: parseFloat(document.getElementById('Theta_M').value),
+                        T_0: parseFloat(document.getElementById('T_0').value),
+                        T_R: parseFloat(document.getElementById('T_R').value),
+                        CpA: parseFloat(document.getElementById('CpA').value),
+                        CpB: parseFloat(document.getElementById('CpB').value),
+                        CpC: parseFloat(document.getElementById('CpC').value),
+                        CpM: parseFloat(document.getElementById('CpM').value),
+                        deltaH: parseFloat(document.getElementById('deltaH').value)
+                    };
+
+                    // Calculate gas constant in appropriate units
+                    const R = 1.987;  // J/(mol·K)
+
+                    // Temperature range for plotting
+                    const T_min = params.T_0 - 50;
+                    const T_max = params.T_0 + 350;
+                    
+                    // Create temperature array with 1000 points
+                    const T = [];
+                    const step = (T_max - T_min) / 999;
+                    for (let i = 0; i < 1000; i++) {
+                        T.push(T_min + i * step);
+                    }
+
+                    // Calculate reaction rate constant
+                    const k = T.map(temp => params.a * Math.exp(-params.E / (R * temp)));
+
+                    // Calculate space time
+                    const tau = params.V / params.FA0;  // V/FA0
+
+                    // Calculate X_MB - Mole Balance
+                    const X_MB = T.map((temp, i) => {
+                        const value = (tau * k[i] * params.CA0) / (1 + tau * k[i] * params.CA0);
+                        return value;
+                    });
+
+                    // Calculate components for energy balance
+                    const delta_CP = params.CpC - params.CpB - params.CpA;
+                    const sum_theta_CP = params.CpA + params.Theta_B * params.CpB + params.Theta_M * params.CpM;
+
+                    // Calculate X_EB - Energy Balance
+                    const X_EB = T.map(temp => {
+                        const numerator = sum_theta_CP * (temp - params.T_0);
+                        const denominator = -(params.deltaH + delta_CP * (temp - params.T_R));
+                        return numerator / denominator;
+                    });
+
+                    // Find valid ranges where X is between 0 and 1
+                    const valid_mb = [];
+                    const valid_eb = [];
+                    const valid_T_mb = [];
+                    const valid_T_eb = [];
+                    const valid_X_mb = [];
+                    const valid_X_eb = [];
+
+                    for (let i = 0; i < T.length; i++) {
+                        if (X_MB[i] >= 0 && X_MB[i] <= 1) {
+                            valid_mb.push(i);
+                            valid_T_mb.push(T[i]);
+                            valid_X_mb.push(X_MB[i]);
+                        }
+                        if (X_EB[i] >= 0 && X_EB[i] <= 1) {
+                            valid_eb.push(i);
+                            valid_T_eb.push(T[i]);
+                            valid_X_eb.push(X_EB[i]);
+                        }
+                    }
+
+                    // Find intersection points (there may be multiple)
+                    const intersections = [];
+                    for (let i = 1; i < T.length; i++) {
+                        if (X_MB[i] >= 0 && X_MB[i] <= 1 && X_EB[i] >= 0 && X_EB[i] <= 1) {
+                            if ((X_MB[i-1] <= X_EB[i-1] && X_MB[i] >= X_EB[i]) || 
+                                (X_MB[i-1] >= X_EB[i-1] && X_MB[i] <= X_EB[i])) {
+                                // Linear interpolation to find more precise intersection
+                                const t = (X_EB[i-1] - X_MB[i-1]) / ((X_MB[i] - X_MB[i-1]) - (X_EB[i] - X_EB[i-1]));
+                                const T_intersect = T[i-1] + t * (T[i] - T[i-1]);
+                                const X_intersect = X_MB[i-1] + t * (X_MB[i] - X_MB[i-1]);
+                                if (X_intersect >= 0 && X_intersect <= 1) {
+                                    intersections.push({T: T_intersect, X: X_intersect});
+                                }
+                            }
+                        }
+                    }
+
+                    // For simplicity, if no intersection found using the method above,
+                    // use the minimum distance approach
+                    if (intersections.length === 0) {
+                        const valid_indices = [];
+                        const diff_values = [];
+                        
+                        for (let i = 0; i < T.length; i++) {
+                            if (X_MB[i] >= 0 && X_MB[i] <= 1 && X_EB[i] >= 0 && X_EB[i] <= 1) {
+                                valid_indices.push(i);
+                                diff_values.push(Math.abs(X_MB[i] - X_EB[i]));
+                            }
+                        }
+                        
+                        if (valid_indices.length > 0) {
+                            const min_diff_index = diff_values.indexOf(Math.min(...diff_values));
+                            const intersection_idx = valid_indices[min_diff_index];
+                            const T_intersect = T[intersection_idx];
+                            const X_intersect = (X_MB[intersection_idx] + X_EB[intersection_idx]) / 2;
+                            intersections.push({T: T_intersect, X: X_intersect});
+                        }
+                    }
+
+                    // Generate debug info
+                    let debugInfo = `Calculation details:\n`;
+                    debugInfo += `• Space time (τ) = ${tau.toFixed(4)} s\n`;
+                    debugInfo += `• k at T₀ (${params.T_0} K) = ${(params.a * Math.exp(-params.E / (R * params.T_0))).toExponential(2)} 1/s\n`;
+                    debugInfo += `• ΔCp = ${delta_CP.toFixed(2)} J/(mol·K)\n`;
+                    debugInfo += `• Σ(θi·Cpi) = ${sum_theta_CP.toFixed(2)} J/(mol·K)\n`;
+
+                    // Additional debug info
+                    if (valid_mb.length > 0) {
+                        const min_X_mb = Math.min(...valid_X_mb);
+                        const max_X_mb = Math.max(...valid_X_mb);
+                        const min_X_mb_idx = valid_X_mb.indexOf(min_X_mb);
+                        const max_X_mb_idx = valid_X_mb.indexOf(max_X_mb);
+                        
+                        debugInfo += `\nMole Balance (valid range):\n`;
+                        debugInfo += `• Min X_MB = ${min_X_mb.toFixed(4)} at T = ${valid_T_mb[min_X_mb_idx].toFixed(1)} K\n`;
+                        debugInfo += `• Max X_MB = ${max_X_mb.toFixed(4)} at T = ${valid_T_mb[max_X_mb_idx].toFixed(1)} K\n`;
+                    }
+
+                    if (valid_eb.length > 0) {
+                        const min_X_eb = Math.min(...valid_X_eb);
+                        const max_X_eb = Math.max(...valid_X_eb);
+                        const min_X_eb_idx = valid_X_eb.indexOf(min_X_eb);
+                        const max_X_eb_idx = valid_X_eb.indexOf(max_X_eb);
+                        
+                        debugInfo += `\nEnergy Balance (valid range):\n`;
+                        debugInfo += `• Min X_EB = ${min_X_eb.toFixed(4)} at T = ${valid_T_eb[min_X_eb_idx].toFixed(1)} K\n`;
+                        debugInfo += `• Max X_EB = ${max_X_eb.toFixed(4)} at T = ${valid_T_eb[max_X_eb_idx].toFixed(1)} K\n`;
+                    }
+
+                    // Add energy balance equation to debug info
+                    debugInfo += `\nEnergy Balance Equation:`;
+                    debugInfo += `\n• X_EB = [CpA + θB·CpB + θM·CpM] · (T - T₀) / -[ΔH° + ΔCp·(T - TR)]`;
+                    debugInfo += `\n• X_EB = [${params.CpA.toFixed(1)} + ${params.Theta_B.toFixed(1)}·${params.CpB.toFixed(1)} + ${params.Theta_M.toFixed(1)}·${params.CpM.toFixed(1)}] · (T - ${params.T_0.toFixed(1)}) / -[${params.deltaH.toFixed(1)} + ${delta_CP.toFixed(1)}·(T - ${params.T_R.toFixed(1)})]`;
+                    debugInfo += `\n• Where ΔCp = CpC - CpB - CpA = ${params.CpC.toFixed(1)} - ${params.CpB.toFixed(1)} - ${params.CpA.toFixed(1)} = ${delta_CP.toFixed(1)} J/(mol·K)`;
+
+                    // Set debug info
+                    document.getElementById('debug-info').textContent = debugInfo;
+
+                    // Plot results
+                    const traces = [
+                        {
+                            x: valid_T_mb,
+                            y: valid_X_mb,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: 'Mole Balance',
+                            line: { color: 'blue', width: 2 }
+                        },
+                        {
+                            x: valid_T_eb,
+                            y: valid_X_eb,
+                            type: 'scatter',
+                            mode: 'lines',
+                            name: 'Energy Balance',
+                            line: { color: 'red', width: 2 }
+                        }
+                    ];
+
+                    // Add intersection points to plot
+                    if (intersections.length > 0) {
+                        let resultText = "Intersection Points:\n";
+                        const intersectionTrace = {
+                            x: intersections.map(p => p.T),
+                            y: intersections.map(p => p.X),
+                            type: 'scatter',
+                            mode: 'markers',
+                            name: 'Intersections',
+                            marker: { 
+                                color: 'black', 
+                                size: 10, 
+                                symbol: 'circle'
+                            },
+                            text: intersections.map(p => `(${p.T.toFixed(1)}K, ${p.X.toFixed(3)})`),
+                            hoverinfo: 'text'
+                        };
+                        traces.push(intersectionTrace);
+
+                        // Generate result text
+                        intersections.forEach((point, i) => {
+                            resultText += `#${i+1}: T = ${point.T.toFixed(2)} K, X = ${point.X.toFixed(4)}\n`;
+                        });
+                        document.getElementById('result-text').textContent = resultText;
+                    } else {
+                        document.getElementById('result-text').textContent = "No intersection found in the valid range (0 ≤ X ≤ 1)";
+                    }
+
+                    // Update plot
+                    Plotly.react(plotDiv, traces, {
+                        title: 'CSTR Conversion vs Temperature',
+                        xaxis: { title: 'Temperature (K)' },
+                        yaxis: { title: 'Conversion (X)', range: [0, 1] },
+                        hovermode: 'closest',
+                        autosize: true
+                    });
+
+                } catch (e) {
+                    document.getElementById('result-text').textContent = `Error: ${e.message}`;
+                    document.getElementById('debug-info').textContent = `Exception details: ${e.name}: ${e.message}`;
+                    console.error(e);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
